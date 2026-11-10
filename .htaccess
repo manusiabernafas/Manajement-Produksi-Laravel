@@ -1,0 +1,22 @@
+# Untuk XAMPP/Laragon tanpa virtual host: buka langsung http://localhost/layanan-kelurahan
+# (Jika memakai virtual host / hosting, arahkan document root ke folder public/ dan file ini tidak terpakai.)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Sudah diarahkan ke public/: berhenti
+    RewriteRule ^public/ - [L]
+
+    # File statis (css, font, gambar unggahan) diambil dari folder public/
+    RewriteRule ^((css|js|fonts|img)/.*|favicon\.svg)$ public/$1 [L]
+
+    # Folder internal tidak boleh diakses dari browser
+    RewriteRule ^(app|bootstrap|config|database|lang|resources|routes|storage|tests|vendor|_test|_papicode)(/|$) - [F,L]
+
+    # Semua halaman lain diproses Laravel
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+<FilesMatch "^(\.env.*|composer\.(json|lock)|artisan|package\.json|phpunit\.xml|vite\.config\.js|setup\.(bat|sh)|papicode\.json|README\.md)$">
+    Require all denied
+</FilesMatch>

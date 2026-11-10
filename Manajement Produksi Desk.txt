@@ -1,0 +1,54 @@
+Source code aplikasi manajemen produksi / manufaktur berbasis Laravel 12 dan MySQL untuk usaha produksi skala kecil-menengah seperti konveksi, mebel, makanan, kerajinan, atau percetakan. Semua alur produksi tercatat dalam satu aplikasi: pesanan pelanggan masuk, aplikasi menghitung kekurangan stok, PPIC membuat perintah produksi (work order) dengan kebutuhan bahan otomatis dari BOM, gudang mengeluarkan bahan, operator menyelesaikan tiap tahap di papan kanban lantai produksi, sampai barang jadi masuk stok dan pesanan siap dikirim lengkap dengan surat jalan.
+
+Pemilik usaha langsung tahu berapa HPP sebenarnya per produk (bahan + upah + overhead dibagi hasil yang lolos QC), berapa tingkat reject per tahap, WO mana yang terlambat, dan bahan apa yang harus dibeli. Menu Kebutuhan bahan menghitung kekurangan bahan dari WO, stok minimum, dan pembelian yang belum datang, lalu membuat PO per supplier hanya dengan mencentang. Data contoh berupa konveksi yang berjalan 75 hari: kaos, kemeja PDH, hoodie, totebag, dan seragam.
+Cara kerja
+Data tersimpan di MySQL: bahan, produk, BOM (kebutuhan bahan per unit + persentase susut), tahapan produksi, pesanan, perintah produksi (WO) beserta bahan dan tahapannya, pembelian, supplier, pelanggan, dan kartu stok. Setiap perubahan stok bahan maupun produk jadi melewati satu fungsi Stok::mutasi() yang mengunci baris (lockForUpdate), menolak stok minus, mencatat saldo berjalan, dan menghitung harga bahan rata-rata tertimbang saat pembelian diterima.
+
+Perintah produksi berjalan draft → rilis → diproduksi → selesai. Saat bahan dikeluarkan, semua bahan dicek dan dikunci sekaligus sehingga tidak ada bahan yang terambil setengah. Di lantai produksi jumlah baik + reject wajib sama dengan jumlah masuk tahap; barang baik diteruskan ke tahap berikutnya, dan tahap terakhir menghitung HPP aktual lalu menambah stok produk jadi. Stok produk otomatis disisihkan untuk pesanan dengan tenggat terdekat (FIFO), sehingga pesanan baru tidak memakai barang milik pesanan lain. Jumlah WO dari pesanan bisa dilebihkan beberapa persen untuk antisipasi reject.
+
+Ada empat peran: admin/pemilik, PPIC, gudang, dan operator, masing-masing hanya bisa membuka menu dan aksi sesuai tugasnya. Keamanan memakai CSRF, password bcrypt, batas percobaan masuk, transaksi database untuk semua proses stok, dan ekspor CSV yang aman dari formula injection. Sudah diuji end-to-end 87 skenario, termasuk dua operator menekan tombol selesai bersamaan.
+Fitur
+Dasbor produksi: WO berjalan, output 30 hari, tingkat reject vs batas, WO terlambat, grafik output 14 hari
+Jumlah barang yang sedang dikerjakan di tiap tahap produksi
+Produk & BOM: kebutuhan bahan per unit + susut %, urutan tahapan, upah dan overhead per unit
+HPP standar dari BOM vs HPP aktual dari produksi terakhir, lengkap dengan margin
+Pesanan pelanggan: hitung kekurangan per produk dan tombol Buat WO dengan jumlah saran
+Lebih produksi % otomatis untuk antisipasi reject
+Perintah produksi (work order): prioritas, tenggat, timeline tahapan, cetak job sheet
+Keluarkan bahan dari gudang dengan cek stok semua bahan sekaligus
+Papan kanban lantai produksi untuk operator: isi jumlah baik & reject per tahap
+Barang baik otomatis pindah ke tahap berikutnya, tahap terakhir menutup WO
+HPP aktual per WO = (bahan + tenaga + overhead) / hasil baik
+Stok produk otomatis disisihkan untuk pesanan dengan tenggat terdekat
+Pesanan siap kirim, cetak surat jalan, dan kirim (stok berkurang)
+Kebutuhan bahan (MRP sederhana): kebutuhan WO + stok minimum - stok - PO yang belum datang
+Buat pembelian dari bahan yang dicentang, dikelompokkan per supplier
+Pembelian: terima sebagian atau penuh, harga bahan rata-rata tertimbang, cetak PO
+Kartu stok bahan & produk dengan saldo berjalan dan stok opname
+Laporan per produk, reject per tahapan, nilai persediaan, pemakaian bahan + ekspor CSV
+Data master supplier (lead time), pelanggan, dan tahapan produksi (urutan & warna)
+Empat peran: admin, PPIC, gudang, operator dengan hak akses berbeda
+Data contoh konveksi 75 hari: 38 WO, 25 pesanan, 25 pembelian, 300+ mutasi stok
+Responsif di HP, jalan di XAMPP tanpa mengetik /public
+Keamanan: CSRF, rate limit login, penguncian baris stok, CSV aman formula injection
+Panduan instalasi
+Kebutuhan: PHP 8.2+ (XAMPP/Laragon), MySQL/MariaDB, Composer.
+
+Ekstrak ZIP ke C:\xampp\htdocs\produksi (Windows) atau folder web server kamu.
+
+Nyalakan Apache dan MySQL di XAMPP Control Panel.
+
+Jalankan setup.bat (Windows) atau bash setup.sh (Linux/macOS). Skrip ini memasang dependency Composer, membuat file .env, membuat database produksi beserta tabel dan data contoh.
+
+Bila MySQL kamu memakai password, salin .env.example menjadi .env lalu isi DB_PASSWORD sebelum menjalankan setup.
+Buka http://localhost/produksi lalu masuk:
+
+Admin: admin@produksi.test / admin123
+PPIC: ppic@produksi.test / ppic123
+Gudang: gudang@produksi.test / gudang123
+Operator: operator@produksi.test / operator123
+Buka Pengaturan untuk mengganti nama usaha, alamat, batas reject, dan persentase lebih produksi. Atur tahapan produksi di Data master, lalu bahan dan produk + BOM milikmu sendiri. Ganti semua kata sandi lewat menu Profil & sandi.
+
+Untuk hosting, arahkan document root ke folder public/, set APP_ENV=production, APP_DEBUG=false, dan APP_URL sesuai domain.
+
+Alternatif tanpa XAMPP: php artisan serve lalu buka http://127.0.0.1:8000.
